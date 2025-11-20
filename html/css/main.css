@@ -1,0 +1,116 @@
+@font-face {
+	font-family: "Titania";
+	src: url("../assets/Titania-Regular.ttf") format('truetype');
+	font-weight: 400;
+}
+
+@import url('https://fonts.googleapis.com/css2?family=Cabin:wght@600&display=swap');
+
+* {
+    margin: 0;
+    padding: 0;
+    user-select: none;
+    color: #F9F4D8;
+	border-radius: 15px;
+	font-weight: 300;
+	font-size: 1.6vh;
+	font-family: "Titania";
+}
+
+html {
+    overflow: hidden;
+}
+
+p {
+    margin: 0 !important;
+}
+
+body {
+	display: block !important;
+	background: transparent;
+}
+
+.main-container {
+    display: none;
+    position: absolute;
+	top: 50%;
+    right: 150;
+    transform: translate(0, -50%);
+	border-radius: 20px;
+	background: #186D85CC;
+	border: solid #F9F4D8 5px;
+	box-shadow: 0px 0px 0px 5px #186D85;
+}
+
+.character-box {
+	padding: 20px;
+	padding-bottom: 30px;
+
+	display: flex;
+	right: 0;
+	flex-direction: row;
+	line-height: 1.4rem;
+	height: fit-content;
+	width: 18rem;
+}
+
+h1 {
+	font-size: 25px;
+	padding-top: 1.3rem;
+	display: block;
+	font-weight: 0;
+}
+
+span {
+	font-family: 'Cabin';
+	font-weight: 600;
+	font-size: 20px;
+	color: #F0AE23;
+}
+
+#logo {
+	justify-self: center;
+	position: relative;
+	top: -60px;
+}
+
+.welcome {
+	position: relative;
+	justify-self: center;
+	font-size: 25px;
+	top: -25px;
+}
+
+.name {
+	position: relative;
+	justify-self: center;
+	font-size: 43px;
+	top: -15px;
+
+	color: #F9F4D8;
+}
+
+.separator {
+	border: 0;
+	height: 1px;
+	width: 80%;
+	position: relative;
+	margin: 0px auto;
+	margin-top: 15px;
+
+	background: #F9F4D8;
+}
+
+.separator::before {
+	content: "";
+	width: 6px;
+	height: 6px;
+	background: #F9F4D8;
+	display: inline-block;
+	border: 2px solid #F9F4D8;
+	position: absolute;
+	top: -5px;
+	left: 50%;
+	margin: 0 0 0 -3px;
+	transform:rotate(45deg);
+}
