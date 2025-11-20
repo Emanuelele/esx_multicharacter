@@ -4,71 +4,19 @@ Multicharacter._index = Multicharacter
 Multicharacter.canRelog = true
 Multicharacter.Characters = {}
 Multicharacter.hidePlayers = false
+Multicharacter.characterPeds = {}
 
 function Multicharacter:SetupCamera()
-    self.cam = CreateCam("DEFAULT_SCRIPTED_CAMERA", true)
-    SetCamActive(self.cam, true)
-    RenderScriptCams(true, false, 1, true, true)
-
-    -- Ottieni le coordinate del ped e calcola l'offset per posizionare la cam frontalmente
-    local pedCoords = GetEntityCoords(self.playerPed)
-    local forwardOffset = GetOffsetFromEntityInWorldCoords(self.playerPed, 0.5, 1.6, 0.6) -- Altezza busto (y per distanza, z per altezza)
-
-    -- Imposta la posizione della camera e orientala verso il ped
-    SetCamCoord(self.cam, forwardOffset.x, forwardOffset.y, forwardOffset.z - 1.0)
-    PointCamAtCoord(self.cam, pedCoords.x, pedCoords.y, pedCoords.z - 0.5) -- Altezza busto del ped
-    SetCamFov(self.cam, 38.0)
-end
-
-function Multicharacter:SetupLight()
-    Citizen.CreateThread(function()
-        SetTimecycleModifier("MP_race_finish")
-        SetTimecycleModifierStrength(1.0)
-        while not ESX.PlayerLoaded do
-            -- Ottieni l'heading del ped in radianti
-            local heading = math.rad(GetEntityHeading(self.playerPed))
-
-            -- Calcola l'offset per spostare la luce a sinistra del ped
-            local offsetXLeft = math.cos(heading) * -1.0 -- Sinistra rispetto all'heading
-            local offsetYLeft = math.sin(heading) * -1.0
-            local offsetZ = 1.0                          -- Altezza sopra il ped
-
-            -- Posizione della luce a sinistra
-            local lightXLeft = self.spawnCoords.x + offsetXLeft
-            local lightYLeft = self.spawnCoords.y + offsetYLeft
-            local lightZLeft = self.spawnCoords.z + offsetZ
-
-            -- Direzione della luce a sinistra (verso il ped)
-            local dirXLeft = -offsetXLeft
-            local dirYLeft = -offsetYLeft
-            local dirZLeft = -0.5 -- Leggermente inclinata verso il basso
-
-            -- Disegna la luce a sinistra
-            DrawSpotLight(lightXLeft, lightYLeft, lightZLeft, dirXLeft, dirYLeft, dirZLeft, 250, 180, 50, 15.0, 10.0, 6.0,
-                22.0, 0.5)
-
-            -- Calcola l'offset per spostare la luce a destra del ped
-            local offsetXRight = math.cos(heading) * 1.0 -- Destra rispetto all'heading
-            local offsetYRight = math.sin(heading) * 1.0
-
-            -- Posizione della luce a destra
-            local lightXRight = self.spawnCoords.x + offsetXRight
-            local lightYRight = self.spawnCoords.y + offsetYRight
-            local lightZRight = self.spawnCoords.z + offsetZ
-
-            -- Direzione della luce a destra (verso il ped)
-            local dirXRight = -offsetXRight
-            local dirYRight = -offsetYRight
-            local dirZRight = -0.8 -- Leggermente inclinata verso il basso
-
-            -- Disegna la luce a destra
-            DrawSpotLight(lightXRight, lightYRight, lightZRight, dirXRight, dirYRight, dirZRight, 0, 61, 71, 15.0, 10.0,
-                6.0, 22.0, 0.5)
-
-            Citizen.Wait(0)
-        end
-        ClearTimecycleModifier()
-    end)
+    if not self.cam then
+        self.cam = CreateCam("DEFAULT_SCRIPTED_CAMERA", true)
+        SetCamActive(self.cam, true)
+        RenderScriptCams(true, false, 1, true, true)
+    end
+    SetTimecycleModifier('TREVOR')
+    SetTimecycleModifierStrength(1.0)
+    SetCamCoord(self.cam, Config.Camera.position.x, Config.Camera.position.y, Config.Camera.position.z)
+    PointCamAtCoord(self.cam, Config.Camera.pointAt.x, Config.Camera.pointAt.y, Config.Camera.pointAt.z)
+    SetCamFov(self.cam, Config.Camera.fov)
 end
 
 function Multicharacter:AwaitFadeIn()
@@ -115,9 +63,143 @@ end
 
 function Multicharacter:HideHud(hide)
     self.hidePlayers = true
-
     MumbleSetVolumeOverride(ESX.PlayerId, 0.0)
     HideComponents(hide)
+end
+
+function Multicharacter:DeleteAllCharacterPeds()
+    self:StopPedClickDetection()
+    
+    for _, ped in pairs(self.characterPeds) do
+        if DoesEntityExist(ped) then
+            DeleteEntity(ped)
+        end
+    end
+    self.characterPeds = {}
+end
+
+function Multicharacter:SpawnAllCharacterPeds()
+    self:DeleteAllCharacterPeds()
+    
+    for index, character in pairs(self.Characters) do
+        local pedConfig = Config.CharacterPeds[index]
+        if not pedConfig then
+            print("^1[ERROR] Configurazione mancante per il ped slot " .. index .. "^0")
+            goto continue
+        end
+        
+        local skin = character.skin
+        if type(skin) == "string" then
+            skin = json.decode(skin)
+        end
+        
+        local model = skin and skin.model or (character.sex == "Maschio" and `mp_m_freemode_01` or `mp_f_freemode_01`)
+        
+        local ped = CreatePed(4, model, pedConfig.position.x, pedConfig.position.y, pedConfig.position.z, pedConfig.heading, false, true)
+        SetEntityAsMissionEntity(ped, true, true)
+        SetBlockingOfNonTemporaryEvents(ped, true)
+        SetEntityInvincible(ped, true)
+        
+        if pedConfig.collision then
+            SetEntityCollision(ped, true, true)
+        else
+            SetEntityCollision(ped, false, false)
+        end
+        
+        if pedConfig.freeze then
+            FreezeEntityPosition(ped, true)
+        end
+        
+        if skin then
+            exports["fivem-appearance"]:setPedAppearance(ped, skin)
+        end
+        
+        if pedConfig.animation then
+            local animDict = pedConfig.animation.dict
+            local animName = pedConfig.animation.name
+            RequestAnimDict(animDict)
+            while not HasAnimDictLoaded(animDict) do
+                Citizen.Wait(0)
+            end
+            TaskPlayAnim(ped, animDict, animName, 8.0, -8.0, -1, 1, 0, false, false, false)
+        end
+        
+        self.characterPeds[index] = ped
+        
+        ::continue::
+    end
+    
+    Citizen.Wait(100)
+    self:StartPedClickDetection()
+end
+
+function Multicharacter:StartPedClickDetection()
+    if self.clickThread then return end
+    
+    self.clickThread = true
+    
+    Citizen.CreateThread(function()
+        while self.clickThread and next(self.characterPeds) do
+            if IsControlJustPressed(0, 24) then
+                local hit, entity = self:GetCameraHitEntity()
+                
+                if hit and entity and DoesEntityExist(entity) then
+                    for index, ped in pairs(self.characterPeds) do
+                        if entity == ped then
+                            Multicharacter:SetupCharacter(index)
+                            Menu:CharacterOptions()
+                            break
+                        end
+                    end
+                end
+            end
+            
+            Citizen.Wait(0)
+        end
+        
+        self.clickThread = false
+    end)
+end
+
+function Multicharacter:GetCameraHitEntity()
+    local camCoord = GetGameplayCamCoord()
+    local camRot = GetGameplayCamRot(2)
+    local camForward = self:RotationToDirection(camRot)
+    local destination = vector3(
+        camCoord.x + camForward.x * 100.0,
+        camCoord.y + camForward.y * 100.0,
+        camCoord.z + camForward.z * 100.0
+    )
+    
+    local rayHandle = StartShapeTestRay(
+        camCoord.x, camCoord.y, camCoord.z,
+        destination.x, destination.y, destination.z,
+        -1,
+        PlayerPedId(),
+        0
+    )
+    
+    local _, hit, _, _, entity = GetShapeTestResult(rayHandle)
+    
+    return hit == 1, entity
+end
+
+function Multicharacter:RotationToDirection(rotation)
+    local adjustedRotation = vector3(
+        (math.pi / 180) * rotation.x,
+        (math.pi / 180) * rotation.y,
+        (math.pi / 180) * rotation.z
+    )
+    
+    return vector3(
+        -math.sin(adjustedRotation.z) * math.abs(math.cos(adjustedRotation.x)),
+        math.cos(adjustedRotation.z) * math.abs(math.cos(adjustedRotation.x)),
+        math.sin(adjustedRotation.x)
+    )
+end
+
+function Multicharacter:StopPedClickDetection()
+    self.clickThread = false
 end
 
 function Multicharacter:SetupCharacters()
@@ -136,8 +218,7 @@ function Multicharacter:SetupCharacters()
     end
     SetPlayerControl(ESX.PlayerId, false, 0)
     SetEntityHeading(self.playerPed, 280.0)
-    self:SetupCamera()
-    self:SetupLight()
+    SetEntityAlpha(self.playerPed, 0, false)
     self:HideHud(true)
 
     ShutdownLoadingScreen()
@@ -145,62 +226,18 @@ function Multicharacter:SetupCharacters()
     TriggerEvent("esx:loadingScreenOff")
     SetTimeout(200, function()
         TriggerServerEvent("esx_multicharacter:SetupCharacters")
-        print("SetupCharacters called")
     end)
-end
-
-function Multicharacter:GetSkin()
-    local character = self.Characters[self.tempIndex]
-    local skin = character and character.skin or Config.Default
-    if not character.model then
-        if character.sex == TranslateCap("female") then
-            skin.sex = 1
-        else
-            skin.sex = 0
-        end
-    end
-    return skin
-end
-
-function Multicharacter:SpawnTempPed()
-    self.canRelog = false
-    local skin = self:GetSkin()
-    print(skin, json.encode(skin))
-    ESX.SpawnPlayer(skin, self.spawnCoords, function()
-        DoScreenFadeIn(600)
-        self.playerPed = PlayerPedId()
-        SetEntityHeading(self.playerPed, 280.0)
-
-        local animDict = 'amb@world_human_stand_impatient@male@no_sign@idle_a'
-        local animName = 'idle_b'
-        RequestAnimDict(animDict)
-        while not HasAnimDictLoaded(animDict) do
-            Citizen.Wait(0)
-        end
-        TaskPlayAnim(self.playerPed, animDict, animName, 8.0, -8.0, -1, 1, 0, false, false, false)
-        exports["fivem-appearance"]:setPlayerAppearance(skin)
-    end)
-end
-
-function Multicharacter:ChangeExistingPed()
-    local newCharacter = self.Characters[self.tempIndex]
-    local spawnedCharacter = self.Characters[self.spawned]
-
-    if spawnedCharacter and spawnedCharacter.model then
-        local model = ESX.Streaming.RequestModel(newCharacter.model)
-        if model then
-            SetPlayerModel(ESX.playerId, newCharacter.model)
-            SetModelAsNoLongerNeeded(newCharacter.model)
-        end
-    end
-
-    exports["fivem-appearance"]:setPlayerAppearance(newCharacter.skin)
 end
 
 function Multicharacter:PrepForUI()
-    FreezeEntityPosition(self.playerPed, true)
-    SetPedAoBlobRendering(self.playerPed, true)
-    SetEntityAlpha(self.playerPed, 255, false)
+    for index, ped in pairs(self.characterPeds) do
+        if index == self.spawned then
+            SetPedAoBlobRendering(ped, true)
+            SetEntityAlpha(ped, 255, false)
+        else
+            SetEntityAlpha(ped, 150, false)
+        end
+    end
 end
 
 function Multicharacter:CloseUI()
@@ -212,18 +249,10 @@ end
 function Multicharacter:SetupCharacter(index)
     local character = self.Characters[index]
     self.tempIndex = index
-
-    if not self.spawned then
-        print("temp ped?")
-        self:SpawnTempPed()
-    elseif character and character.skin then
-        self:ChangeExistingPed()
-    end
-
     self.spawned = index
-    self.playerPed = PlayerPedId()
+    
     self:PrepForUI()
-    print("openui", character, json.encode(character))
+    
     SendNUIMessage({
         action = "openui",
         character = character,
@@ -242,9 +271,6 @@ function Multicharacter:SetupUI(characters, slots)
             self.canRelog = false
 
             ESX.SpawnPlayer(Config.Default, self.spawnCoords, function()
-                --DoScreenFadeIn(400)
-                --self:AwaitFadeIn()
-
                 self.playerPed = PlayerPedId()
                 SetPedAoBlobRendering(self.playerPed, false)
                 SetEntityAlpha(self.playerPed, 0, false)
@@ -258,6 +284,10 @@ function Multicharacter:SetupUI(characters, slots)
             end)
         end
     else
+        SetEntityCoords(PlayerPedId())
+        self:SpawnAllCharacterPeds()
+        self:SetupCamera()
+        DoScreenFadeIn(600)
         Menu:SelectCharacter()
     end
 end
@@ -302,17 +332,7 @@ function Multicharacter:LoadSkinCreator()
             Citizen.Wait(250)
             TriggerEvent("lele_firstspawn:init")
         end, config)
-
-        --[[ exports["peakville_skincreator"]:OpenSkinCreator(function()
-            exports["peakville_hud"]:SetHudsStatus(false)
-            exports["peakville_chat"]:SetChatActive(false)
-            exports["ox_inventory"]:setLogoVisibility(false)
-            exports["peakville_pausemenu"]:DisableMenus(true)
-            Multicharacter.finishedCreation = true
-            TriggerServerEvent("lele_firstspawn:init")
-        end) ]]
     end)
-    --[[ end) ]]
 end
 
 function Multicharacter:SetDefaultSkin(playerData)
@@ -326,6 +346,7 @@ function Multicharacter:SetDefaultSkin(playerData)
 end
 
 function Multicharacter:Reset()
+    self:DeleteAllCharacterPeds()
     self.Characters = {}
     self.tempIndex = nil
     self.playerPed = PlayerPedId()
@@ -357,7 +378,6 @@ function Multicharacter:PlayerLoaded(playerData, isNew, skin)
         end
 
         skin = exports["fivem-appearance"]:getPedAppearance(PlayerPedId())
-        print(skin, json.encode(skin))
         DoScreenFadeOut(500)
         self:AwaitFadeOut()
     elseif not isNew then
@@ -399,7 +419,3 @@ function Multicharacter:PlayerLoaded(playerData, isNew, skin)
     end
     exports["peakville_hud"]:SetHudsStatus(true)
 end
-
--- RegisterCommand('testhe', function()
---     SetEntityHeading(PlayerPedId(), 266.0)
--- end)

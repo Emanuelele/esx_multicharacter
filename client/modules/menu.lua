@@ -64,10 +64,13 @@ function Menu:SelectCharacter()
     local Characters = Multicharacter.Characters
     local Character = next(Characters)
     self:CheckModel(Characters[Character])
-    print("check model")
+
     if not Multicharacter.spawned then
-        print("setup?", Character, json.encode(Character))
         Multicharacter:SetupCharacter(Character)
+    end
+
+    for index, ped in pairs(Multicharacter.characterPeds) do
+        SetEntityAlpha(ped, 255, false)
     end
 
     self.currentElements = {
@@ -80,18 +83,12 @@ function Menu:SelectCharacter()
     }
 
     self:AddCharacters()
-    print("chars added")
     self.onUse = function(_, SelectedCharacter)
         if SelectedCharacter.new then
-            print("new char")
            self:NewCharacter()
         else
-            print("else")
             if SelectedCharacter.value ~= Multicharacter.spawned then
                 Multicharacter:SetupCharacter(SelectedCharacter.value)
-                local playerPed = PlayerPedId()
-                SetPedAoBlobRendering(playerPed, true)
-                ResetEntityAlpha(playerPed)
             end
             self:CharacterOptions()
         end
@@ -139,6 +136,14 @@ function Menu:CharacterOptions()
             description = TranslateCap("char_delete_description"),
             action = "delete",
         }
+    end
+
+    for index, ped in pairs(Multicharacter.characterPeds) do
+        if index == Multicharacter.spawned then
+            SetEntityAlpha(ped, 255, false)
+        else
+            SetEntityAlpha(ped, 100, false)
+        end
     end
 
     self.currentElements = elements

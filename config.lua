@@ -16,8 +16,59 @@ else
     -- Sets the location for the character selection scene
     -- To set the spawn location for new characters, modify the default value in the users SQL table
 
+    Config.CharacterPeds = {
+        [1] = {
+            position = vector3(53.9078, 6515.2744, 29.8712),
+            heading = 225.0000,
+            animation = {
+                dict = 'amb@prop_human_seat_chair@male@generic@idle_b',
+                name = 'idle_d'
+            },
+            collision = true,
+            freeze = true
+        },
+        [2] = {
+            position = vector3(54.9854, 6514.1973, 29.8712),
+            heading = 45.0000,
+            animation = {
+                dict = 'amb@prop_human_seat_chair@male@generic@idle_b',
+                name = 'idle_d'
+            },
+            collision = true,
+            freeze = true
+        },
+        [3] = {
+            position = vector3(53.3813, 6514.7490, 29.8712),
+            heading = 225.0000,
+            animation = {
+                dict = 'amb@prop_human_seat_chair@male@generic@idle_b',
+                name = 'idle_d'
+            },
+            collision = true,
+            freeze = true
+        },
+        [4] = {
+            position = vector3(54.4590, 6513.6719, 29.8712),
+            heading = 45.0000,
+            animation = {
+                dict = 'amb@prop_human_seat_chair@male@generic@idle_b',
+                name = 'idle_b'
+            },
+            collision = true,
+            freeze = true
+        }
+    }
+
+    
+    Config.Camera = {
+        position = vector3(53.2468, 6511.3716, 32.8), -- Posizione assoluta della camera
+        pointAt = vector3(54.7208, 6517.5688, 30.0), -- Punto verso cui guarda la camera
+        fov = 41.0
+    }
+
+
     Config.Spawn = {
-        { x = 44.9845, y = 6516.6978, z = 31.3991, w = 266.0 },
+        { x = 54.3131, y = 6511.0542, z = 31.3780, w = 321.4830 },
     }
     --------------------
 
